@@ -14,11 +14,6 @@ from requests.auth import HTTPBasicAuth
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def get_credentials():
-    """Function to get credentials of user
-
-    Returns:
-        (string, string): strings containing username and password of user
-    """
     username = input("Enter your Confluence username: ")
     password = getpass.getpass("Enter your Confluence password: ")
     # password = input("Enter your Confluence password: ") # for api key
@@ -27,33 +22,16 @@ def get_credentials():
 def get_timestamp():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+# TODO: Finish this function
 def check_approvals(page_id, apiAuth):
-    """Checks if a confluence page has approvals on it
-
-    Args:
-        page_id (string): page id of confluence page to check
-        apiAuth (tuple(string)): credentials to use confluence API
-
-    Returns:
-        bool: boolean describing whether page has workflow on it
-    """
     approvalsURL = f"https://confluence.service.anz/rest/cw/1/content/{page_id}/status"
 
     response = requests.get(approvalsURL, auth=apiAuth, verify = False)
+    print(response.status_code)
     return response.status_code == 200
 
 
 def extract_plantumlrender_code(node):
-    """Breaks down rich text body in plantumlrender macros to be able to render
-    image
-
-    Args:
-        node (etree.Element): tree node containing source code for plantumlrender
-        macro
-
-    Returns:
-        string: string containing processed source code from plantumlrender macro
-    """
     text = node.text or ""
     for elem in node:
         if elem.tag == 'br':
@@ -62,59 +40,31 @@ def extract_plantumlrender_code(node):
                 text += elem.tail
     return text
 
-def render_plantuml_to_image(process, source_code: str) -> BytesIO:
-    """Renders PlantUML source code to an image using a persistent subprocess.
 
-    Args:
-        process (subprocess.Popen): The PlantUML subprocess.
-        source_code (str): The PlantUML source code to render.
+def render_plantuml_to_image(source_code: str) -> BytesIO:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    puml_files_path = os.path.join(script_dir, 'puml_files')
 
-    Returns:
-        BytesIO: A BytesIO stream containing the rendered UML image, or None if rendering fails.
-    """
-    source_code = source_code.strip() + "\n"  # Ensure input ends with a newline
-    print("Input to PlantUML:")
-    print(repr(source_code))  # Debugging input
+    process = subprocess.Popen(
+        ['java', '-jar', 'plantuml.jar', '-pipe', '-tpng'],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd = puml_files_path
+    )
 
-    try:
-        # Write the source code to the process's stdin
-        process.stdin.write(source_code.encode('utf-8'))
-        process.stdin.flush()
+    print("source: ", repr(source_code), "\n")
+    stdout, stderr = process.communicate(source_code.encode('utf-8'))
 
-        # Read the output from stdout
-        stdout, stderr = process.communicate(timeout=5)  # Add a timeout to prevent infinite blocking
+    if stderr:
+        print("PLANTUMLERROR: ", stderr)
 
-        if stderr:
-            print("PLANTUML ERROR:", stderr.decode('utf-8'))
-            return None
-
-        return BytesIO(stdout)
-
-    except subprocess.TimeoutExpired:
-        print("PlantUML process timed out.")
-        process.kill()
+    if process.returncode != 0:
         return None
 
-    except Exception as e:
-        print(f"Error during PlantUML rendering: {e}")
-        return None
+    return BytesIO(stdout)
 
-def process_macro(macro, uml_id, page_id, skipped_log_filename, process):
-    """_summary_
-
-    Args:
-        macro (_type_): _description_
-        uml_id (_type_): _description_
-        page_id (_type_): _description_
-        skipped_log_filename (_type_): _description_
-        process (_type_): _description_
-
-    Raises:
-        ValueError: _description_
-
-    Returns:
-        _type_: _description_
-    """
+def process_macro(macro, uml_id, page_id, skipped_log_filename):
     # Determine whether the macro is plantuml or plantumlrender
     macro_type = macro.attrib.get('{http://atlassian.com/content}name')
 
@@ -148,7 +98,7 @@ def process_macro(macro, uml_id, page_id, skipped_log_filename, process):
         raise ValueError(f"Wrong macro: {macro_type}")
     
     # Render source code into image
-    image_data = render_plantuml_to_image(process, source_code)
+    image_data = render_plantuml_to_image(source_code)
 
     # if the rendering fails, log and return accordingly
     if not image_data:
@@ -167,7 +117,6 @@ def runScript(fileName):
     skipped_log_filename = f"skipped_log_{startTimestamp}.txt"
     processed_log_filename = f"processed_pages_{startTimestamp}.txt"
 
-
     # List of page IDs to check
     with open(fileName, "r") as file:
         page_ids = [line.strip() for line in file if line.strip()]
@@ -175,22 +124,6 @@ def runScript(fileName):
 
     username, password = get_credentials()
     apiAuth = HTTPBasicAuth(username, password)
-
-
-    # Get the directory where this script is located
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Path to the 'include_files' directory
-    include_dir = os.path.join(script_dir, 'include_files')
-    
-    # Initialise PlantUML jar process
-    process = subprocess.Popen(
-        ['java', '-jar', 'plantuml.jar', '-pipe', '-tpng'],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=include_dir
-
-    )
 
     # namespace declaration for image
     AC_NS = "http://atlassian.com/content" # namespace for atlassian content
@@ -218,12 +151,14 @@ def runScript(fileName):
         updateURL = f"https://confluence.service.anz/rest/api/content/{page_id}"
 
         # response includes the status code, text etc.
+        # TODO: add certificate verification
         # TODO: change from username and password to API key
         response = requests.get(getURL, auth=apiAuth, verify = False)
 
 
         # check if get request worked correctly
         if response.status_code != 200:
+            print(response.status_code)
             # if not 200, we have an issue so page cannot be processed
             timestamp = get_timestamp()
             with open(skipped_log_filename, "a") as failed_log:
@@ -262,13 +197,14 @@ def runScript(fileName):
             counter += 1
 
             # get the image and source code
-            image_data, source_code = process_macro(macro, uml_id, page_id, skipped_log_filename, process)
+            image_data, source_code = process_macro(macro, uml_id, page_id, skipped_log_filename)
             
             # if the macro could not be processed, we want to continue
             if not image_data:
                 continue
 
             # POST to attach the image to the confluence page
+            # TODO: add certificate verification
             # TODO: change from username and password to API key
             requests.post(attachURL, 
                           auth=apiAuth,
@@ -323,6 +259,7 @@ def runScript(fileName):
             }
         }
         
+        # TODO: add certificate verification
         # TODO: change from username and password to API key
         update_response = requests.put(updateURL, headers=headers, json=payload, auth=apiAuth, verify=False)
 
@@ -333,10 +270,7 @@ def runScript(fileName):
         else:
             with open(skipped_log_filename, "a") as failed_log:
                 failed_log.write(f"{timestamp}: Page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} not updated successfully\n")
-
-    # Ensure the process is terminated after all inputs
-    process.stdin.close()
-    process.terminate()
+            print(update_response.text)
 
     print("Script finished")
 
