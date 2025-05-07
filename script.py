@@ -37,27 +37,8 @@ def extract_plantumlrender_code(node):
             text += "\n"
             if elem.tail:
                 text += elem.tail
+    print(text)
     return text
-
-def extract_plantumlrender_code(macro_elem):
-    # Try preformatted <pre> tag first
-    pre = macro_elem.find(".//pre")
-    if pre is not None and pre.text:
-        return pre.text
-
-    # Otherwise try to extract from <ac:rich-text-body> using <p> elements
-    rich_body = macro_elem.find(".//ac:rich-text-body", namespaces={'ac':"http://atlassian.com/content"})
-    if rich_body is not None:
-        lines = []
-        for p in rich_body.findall(".//p"):
-            # .text may be None if the <p> is empty
-            if p.text:
-                lines.append(p.text)
-        return "\n".join(lines) if lines else None
-
-    # If neither is found
-    return None
-
 
 def render_plantuml_to_image(source_code: str) -> BytesIO:
     process = subprocess.Popen(
@@ -96,12 +77,14 @@ def process_macro(macro, uml_id, page_id, skipped_log_filename):
         # find node with rich-text-body id
         node = macro.find('.//ac:rich-text-body//pre', namespaces={'ac': 'http://atlassian.com/content'})
         # handle bad node
-        source_code = extract_plantumlrender_code(macro)
-        if not source_code:
+        if node is None or node.text is None:
             timestamp = get_timestamp()
             with open(skipped_log_filename, "a") as failed_log:
-                failed_log.write(f"{timestamp}: plantumlrender Macro {uml_id} on page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} could not extract UML source.\n")
+                failed_log.write(f"{timestamp}: plantuml macro {uml_id} on page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} has incorrect syntax.\n")
             return None, None
+        # store source code
+        source_code = extract_plantumlrender_code(node)
+        print(source_code)
 
     
     else:
