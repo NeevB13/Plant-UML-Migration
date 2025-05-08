@@ -22,24 +22,35 @@ def get_credentials():
 def get_timestamp():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-# TODO: Finish this function
 def check_approvals(page_id, apiAuth):
     approvalsURL = f"https://confluence.service.anz/rest/cw/1/content/{page_id}/status"
 
     response = requests.get(approvalsURL, auth=apiAuth, verify = False)
-    print(response.status_code)
     return response.status_code == 200
 
 
 def extract_plantumlrender_code(node):
-    text = node.text or ""
-    for elem in node:
-        if elem.tag == 'br':
-            text += "\n"
-            if elem.tail:
-                text += elem.tail
-    return text
+    print(node.text)
+    # check for pre tag and process
+    pre = node.find(".//pre")
+    if pre:
+        text = pre.text or ""
+        for elem in pre:
+            if elem.tag == 'br':
+                text += "\n"
+                if elem.tail:
+                    text += elem.tail
+        return text.strip()
 
+    # if no pre tag, fall back to p tags
+    lines = []
+    for p in node.findall(".//p"):
+        if p.text:
+            lines.append(p.text)
+        for child in p:
+            if child.tail:
+                lines.append(child.tail)
+    return "\n".join(lines).strip() if lines else None
 
 def render_plantuml_to_image(source_code: str) -> BytesIO:
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -53,7 +64,6 @@ def render_plantuml_to_image(source_code: str) -> BytesIO:
         cwd = puml_files_path
     )
 
-    print("source: ", repr(source_code), "\n")
     stdout, stderr = process.communicate(source_code.encode('utf-8'))
 
     if stderr:
@@ -82,17 +92,17 @@ def process_macro(macro, uml_id, page_id, skipped_log_filename):
 
     elif macro_type == "plantumlrender":
         # find node with rich-text-body id
-        node = macro.find('.//ac:rich-text-body//pre', namespaces={'ac': 'http://atlassian.com/content'})
+        node = macro.find('.//ac:rich-text-body', namespaces={'ac': 'http://atlassian.com/content'})
+        print(node.text)
+        # get the source code from the node
+        source_code = extract_plantumlrender_code(node)
         # handle bad node
-        if node is None or node.text is None:
+        if not source_code:
             timestamp = get_timestamp()
             with open(skipped_log_filename, "a") as failed_log:
                 failed_log.write(f"{timestamp}: plantuml macro {uml_id} on page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} has incorrect syntax.\n")
             return None, None
-        # store source code
-        source_code = extract_plantumlrender_code(node)
-
-    
+        
     else:
         # if the macro's type is not plantUML raise an error
         raise ValueError(f"Wrong macro: {macro_type}")
@@ -110,7 +120,6 @@ def process_macro(macro, uml_id, page_id, skipped_log_filename):
     # Return tuple to be used for updating the Confluence page
     return image_data, source_code
     
-
 def runScript(fileName):
     # Create logs
     startTimestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -151,14 +160,12 @@ def runScript(fileName):
         updateURL = f"https://confluence.service.anz/rest/api/content/{page_id}"
 
         # response includes the status code, text etc.
-        # TODO: add certificate verification
         # TODO: change from username and password to API key
         response = requests.get(getURL, auth=apiAuth, verify = False)
 
 
         # check if get request worked correctly
         if response.status_code != 200:
-            print(response.status_code)
             # if not 200, we have an issue so page cannot be processed
             timestamp = get_timestamp()
             with open(skipped_log_filename, "a") as failed_log:
@@ -184,7 +191,7 @@ def runScript(fileName):
         # Turn our current body into an xml tree so we can process it
         tree = etree.fromstring(f"<root xmlns:ac='http://atlassian.com/content'>{current_body}</root>", parser=parser)
 
-        print(etree.tostring(tree, pretty_print=True).decode()) # Just to test
+        # print(etree.tostring(tree, pretty_print=True).decode()) # Just to test
 
         # extracts all plantUML macro nodes
         plantMacros = tree.xpath(
@@ -204,7 +211,6 @@ def runScript(fileName):
                 continue
 
             # POST to attach the image to the confluence page
-            # TODO: add certificate verification
             # TODO: change from username and password to API key
             requests.post(attachURL, 
                           auth=apiAuth,
@@ -259,7 +265,6 @@ def runScript(fileName):
             }
         }
         
-        # TODO: add certificate verification
         # TODO: change from username and password to API key
         update_response = requests.put(updateURL, headers=headers, json=payload, auth=apiAuth, verify=False)
 
@@ -270,7 +275,6 @@ def runScript(fileName):
         else:
             with open(skipped_log_filename, "a") as failed_log:
                 failed_log.write(f"{timestamp}: Page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} not updated successfully\n")
-            print(update_response.text)
 
     print("Script finished")
 
