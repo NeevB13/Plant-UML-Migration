@@ -30,7 +30,6 @@ def check_approvals(page_id, apiAuth):
 
 
 def extract_plantumlrender_code(node):
-    print(node.text)
     # check for pre tag and process
     pre = node.find(".//pre")
     if pre:
@@ -52,29 +51,36 @@ def extract_plantumlrender_code(node):
                 lines.append(child.tail)
     return "\n".join(lines).strip() if lines else None
 
-def render_plantuml_to_image(source_code: str) -> BytesIO:
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    puml_files_path = os.path.join(script_dir, 'puml_files')
+def render_plantuml_to_image(source_code: str, server_url: str) -> BytesIO:
+    """
+    Sends PlantUML source code to a PlantUML server for rendering.
 
-    process = subprocess.Popen(
-        ['java', '-jar', 'plantuml.jar', '-pipe', '-tpng'],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd = puml_files_path
-    )
+    Args:
+        source_code (str): The PlantUML source code to render.
+        server_url (str): The URL of the PlantUML server (e.g., "http://localhost:8080").
 
-    stdout, stderr = process.communicate(source_code.encode('utf-8'))
+    Returns:
+        BytesIO: A BytesIO stream containing the rendered UML image, or None if rendering fails.
+    """
+    try:
+        # Send the source code to the PlantUML server
+        response = requests.post(
+            f"{server_url}/png",
+            data=source_code.encode('utf-8'),
+            headers={"Content-Type": "text/plain"}
+        )
 
-    if stderr:
-        print("PLANTUMLERROR: ", stderr)
-
-    if process.returncode != 0:
+        # Check if the request was successful
+        if response.status_code == 200:
+            return BytesIO(response.content)
+        else:
+            print(f"PlantUML server error: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"Error connecting to PlantUML server: {e}")
         return None
 
-    return BytesIO(stdout)
-
-def process_macro(macro, uml_id, page_id, skipped_log_filename):
+def process_macro(macro, server_url, uml_id, page_id, skipped_log_filename):
     # Determine whether the macro is plantuml or plantumlrender
     macro_type = macro.attrib.get('{http://atlassian.com/content}name')
 
@@ -93,7 +99,6 @@ def process_macro(macro, uml_id, page_id, skipped_log_filename):
     elif macro_type == "plantumlrender":
         # find node with rich-text-body id
         node = macro.find('.//ac:rich-text-body', namespaces={'ac': 'http://atlassian.com/content'})
-        print(node.text)
         # get the source code from the node
         source_code = extract_plantumlrender_code(node)
         # handle bad node
@@ -108,7 +113,7 @@ def process_macro(macro, uml_id, page_id, skipped_log_filename):
         raise ValueError(f"Wrong macro: {macro_type}")
     
     # Render source code into image
-    image_data = render_plantuml_to_image(source_code)
+    image_data = render_plantuml_to_image(source_code, server_url)
 
     # if the rendering fails, log and return accordingly
     if not image_data:
@@ -120,7 +125,7 @@ def process_macro(macro, uml_id, page_id, skipped_log_filename):
     # Return tuple to be used for updating the Confluence page
     return image_data, source_code
     
-def runScript(fileName):
+def runScript(fileName, server_url="http://localhost:8080"):
     # Create logs
     startTimestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     skipped_log_filename = f"skipped_log_{startTimestamp}.txt"
@@ -204,7 +209,7 @@ def runScript(fileName):
             counter += 1
 
             # get the image and source code
-            image_data, source_code = process_macro(macro, uml_id, page_id, skipped_log_filename)
+            image_data, source_code = process_macro(macro, server_url, uml_id, page_id, skipped_log_filename)
             
             # if the macro could not be processed, we want to continue
             if not image_data:

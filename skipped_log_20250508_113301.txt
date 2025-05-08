@@ -1,2 +1,0 @@
-2025-05-08 11:33:15: Macro puml_4151312875_1 on page https://confluence.service.anz/pages/viewpage.action?pageId=4151312875 failed to render.
-2025-05-08 11:33:15: plantuml macro puml_4151312875_2 on page https://confluence.service.anz/pages/viewpage.action?pageId=4151312875 has incorrect syntax.
