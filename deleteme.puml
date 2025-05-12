@@ -1,6 +1,0 @@
-@startuml
-
-A -> B: message
-A <-- B: response
-
-@enduml

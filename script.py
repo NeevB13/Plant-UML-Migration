@@ -8,10 +8,41 @@ from lxml import etree
 import urllib3
 from requests.auth import HTTPBasicAuth
 import sys
+import csv
 
 # === CONFIG ===
 # disable insecure requests warning
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+def initialise_logs():
+    # Create csv for pages
+    startTimestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    page_log = f"page_log_{startTimestamp}.csv"
+    skipped_macro_log = f"skipped_macro_log_{startTimestamp}.csv"
+    unresolved_include_log = f"unresolved_include_log_{startTimestamp}.csv"
+    approval_log = f"approval_log_{startTimestamp}.csv"
+
+    LOG_DEFS = {
+        page_log : ['timestamp', 'page_id', 'Successfully_Updated', 'message'],
+        skipped_macro_log : ['timestamp', 'uml_id', 'page_id', 'error_message'],
+        unresolved_include_log : ['timestamp', 'uml_id', 'page_id'],
+        approval_log : ['timestamp', 'page_id']
+    }
+
+    for filename, headers in LOG_DEFS.items():
+        with open(filename, mode='w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(headers)
+    
+    return page_log, skipped_macro_log, unresolved_include_log, approval_log
+
+
+def append_to_log(filename, data):
+    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")] + data
+    with open(filename, mode='a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(log_entry)
 
 def get_credentials():
     username = input("Enter your Confluence username: ")
@@ -80,7 +111,7 @@ def render_plantuml_to_image(source_code: str, server_url: str) -> BytesIO:
         print(f"Error connecting to PlantUML server: {e}")
         return None
 
-def process_macro(macro, server_url, uml_id, page_id, skipped_log_filename):
+def process_macro(macro, server_url, uml_id, page_id, skipped_macro_log):
     # Determine whether the macro is plantuml or plantumlrender
     macro_type = macro.attrib.get('{http://atlassian.com/content}name')
 
@@ -89,9 +120,7 @@ def process_macro(macro, server_url, uml_id, page_id, skipped_log_filename):
         node = macro.find('.//ac:plain-text-body', namespaces={'ac': 'http://atlassian.com/content'})
         # check if something wrong with node
         if node is None or node.text is None:
-            timestamp = get_timestamp()
-            with open(skipped_log_filename, "a") as failed_log:
-                failed_log.write(f"{timestamp}: plantuml macro {uml_id} on page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} has incorrect syntax.\n")
+            append_to_log(skipped_macro_log, [uml_id, page_id, "plantuml macro has incorrect syntax"])
             return None, None
         # store source code
         source_code = node.text
@@ -103,23 +132,20 @@ def process_macro(macro, server_url, uml_id, page_id, skipped_log_filename):
         source_code = extract_plantumlrender_code(node)
         # handle bad node
         if not source_code:
-            timestamp = get_timestamp()
-            with open(skipped_log_filename, "a") as failed_log:
-                failed_log.write(f"{timestamp}: plantuml macro {uml_id} on page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} has incorrect syntax.\n")
+            append_to_log(skipped_macro_log, [uml_id, page_id, "plantumlrender macro has incorrect syntax"])
             return None, None
         
     else:
         # if the macro's type is not plantUML raise an error
-        raise ValueError(f"Wrong macro: {macro_type}")
+        append_to_log(skipped_macro_log, [uml_id, page_id, f"wrong macro type: {macro_type}"])
+        return None, None
     
     # Render source code into image
     image_data = render_plantuml_to_image(source_code, server_url)
 
     # if the rendering fails, log and return accordingly
     if not image_data:
-        timestamp = get_timestamp()
-        with open(skipped_log_filename, "a") as failed_log:
-            failed_log.write(f"{timestamp}: Macro {uml_id} on page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} failed to render.\n")
+        append_to_log(skipped_macro_log, [uml_id, page_id, "Image failed to render"])
         return None, source_code
 
     # Return tuple to be used for updating the Confluence page
@@ -141,9 +167,7 @@ def start_plantuml_container():
     
 def runScript(fileName, server_url="http://localhost:8080"):
     # Create logs
-    startTimestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    skipped_log_filename = f"skipped_log_{startTimestamp}.txt"
-    processed_log_filename = f"processed_pages_{startTimestamp}.txt"
+    page_log, skipped_macro_log, unresolved_include_log, approval_log = initialise_logs()
 
     # List of page IDs to check
     with open(fileName, "r") as file:
@@ -167,10 +191,7 @@ def runScript(fileName, server_url="http://localhost:8080"):
         
         # Check for approvals
         if check_approvals(page_id, apiAuth):
-            timestamp = get_timestamp()
-            with open(skipped_log_filename, "a") as failed_log:
-                # if there are approvals on the page, we want to add it to the failed log and keep going
-                failed_log.write(f"{timestamp}: Page {page_id} not processed as it has approvals\n")
+            append_to_log(approval_log, [page_id])
             continue # do not go through rest of process
 
         # no approvals on page so keep going
@@ -187,17 +208,14 @@ def runScript(fileName, server_url="http://localhost:8080"):
 
         # check if get request worked correctly
         if response.status_code != 200:
-            # if not 200, we have an issue so page cannot be processed
-            timestamp = get_timestamp()
-            with open(skipped_log_filename, "a") as failed_log:
-                if response.status_code == 403:
-                    failed_log.write(f"{timestamp}: Page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} not processed as access not granted\n")
-                elif response.status_code == 404:
-                    failed_log.write(f"{timestamp}: Page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} not processed as it does not exist or access is not granted\n")
-                elif response.status_code == 502:
-                    failed_log.write(f"{timestamp}: Page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} bad gateway, likely proxy error\n")
-                else:
-                    failed_log.write(f"{timestamp}: Page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} not processed with error code {response.status_code}\n")
+            if response.status_code == 403:
+                append_to_log(page_log, [page_id, "No", "403: access not granted"])
+            elif response.status_code == 404:
+                append_to_log(page_log, [page_id, "No", "404: page does not exist or access not granted"])
+            elif response.status_code == 502:
+                append_to_log(page_log, [page_id, "No", "502: bad gateway, likely proxy error"])
+            else:
+                append_to_log(page_log, [page_id, "No", f"{response.status_code}: page not processed"])
             continue # do not go through rest of process
         
         
@@ -225,7 +243,7 @@ def runScript(fileName, server_url="http://localhost:8080"):
             counter += 1
 
             # get the image and source code
-            image_data, source_code = process_macro(macro, server_url, uml_id, page_id, skipped_log_filename)
+            image_data, source_code = process_macro(macro, server_url, uml_id, page_id, skipped_macro_log)
             
             # if the macro could not be processed, we want to continue
             if not image_data:
@@ -290,13 +308,10 @@ def runScript(fileName, server_url="http://localhost:8080"):
         update_response = requests.put(updateURL, headers=headers, json=payload, auth=apiAuth, verify=False)
 
         if update_response.status_code == 200:
-            timestamp = get_timestamp()
-            with open(processed_log_filename, "a") as processed_pages:
-                processed_pages.write(f"{timestamp}: Page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} updated successfully\n")
+            append_to_log(page_log, [page_id, "Yes", "Page updated successfully"])
         else:
-            with open(skipped_log_filename, "a") as failed_log:
-                failed_log.write(f"{timestamp}: Page https://confluence.service.anz/pages/viewpage.action?pageId={page_id} not updated successfully\n")
-
+            append_to_log(page_log, [page_id, "No", f"Failed to update page: {update_response.status_code}"])
+            
     print("Script finished")
 
 
