@@ -1,6 +1,7 @@
 import datetime
 from io import BytesIO
 import os
+import re
 import requests
 import getpass
 import subprocess
@@ -111,7 +112,44 @@ def render_plantuml_to_image(source_code: str, server_url: str) -> BytesIO:
         print(f"Error connecting to PlantUML server: {e}")
         return None
 
-def process_macro(macro, server_url, uml_id, page_id, skipped_macro_log):
+def process_includes(source_code: str, include_dir: str) -> str | None:
+    updated_lines = []
+    lines = source_code.splitlines()
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("!include"):
+            # Match everything after !include and optional whitespace
+            match = re.match(r"!include\s+(.*)", stripped)
+            if match:
+                include_path = match.group(1)
+                # Try to split on caret and extract filename
+                if '^' in include_path:
+                    filename = include_path.split('^')[-1]
+                else:
+                    filename = os.path.basename(include_path)
+
+                container_path = f"/app/include_files/{filename}"
+
+                result = subprocess.run(
+                    ["docker", "exec", "plantuml_server", "test", "-f", container_path],
+                    capture_output=True
+                )
+
+                if result.returncode == 0:
+                    updated_line = f"!include {container_path}"
+                    updated_lines.append(updated_line)
+                else:
+                    print(f"Include file not found: {container_path}")
+                    return False, filename  # Exit early
+            else:
+                updated_lines.append(line)
+        else:
+            updated_lines.append(line)
+
+    return True, "\n".join(updated_lines)
+
+def process_macro(macro, server_url, uml_id, page_id, skipped_macro_log, unresolved_include_log):
     # Determine whether the macro is plantuml or plantumlrender
     macro_type = macro.attrib.get('{http://atlassian.com/content}name')
 
@@ -140,8 +178,17 @@ def process_macro(macro, server_url, uml_id, page_id, skipped_macro_log):
         append_to_log(skipped_macro_log, [uml_id, page_id, f"wrong macro type: {macro_type}"])
         return None, None
     
+    # processed is boolean on whether the includes were processed correctly
+    # text is unresolved file if not processed and code to render if processed
+    processed, text = process_includes(source_code, "/app/include_files")
+    if not processed:
+        append_to_log(unresolved_include_log, [uml_id, page_id, f"Include files not resolved: {text}"])
+        return None, source_code
+    
+    # if includes were correctly processed, render the code
+    render_code = text
     # Render source code into image
-    image_data = render_plantuml_to_image(source_code, server_url)
+    image_data = render_plantuml_to_image(render_code, server_url)
 
     # if the rendering fails, log and return accordingly
     if not image_data:
@@ -156,6 +203,7 @@ def start_plantuml_container():
     try:
         subprocess.run([
             "docker", "run", "-d",
+            "--name", "plantuml_server", 
             "-p", "8080:8080",
             "-v", f"{includes_path}:/app/include_files",
             "-e", "PLANTUML_SECURITY_PROFILE=UNSECURE",
@@ -166,15 +214,15 @@ def start_plantuml_container():
         print("Failed to start PlantUML container:", e)
     
 def runScript(fileName, server_url="http://localhost:8080"):
+    username, password = get_credentials()
+    apiAuth = HTTPBasicAuth(username, password)
+
     # Create logs
     page_log, skipped_macro_log, unresolved_include_log, approval_log = initialise_logs()
 
     # List of page IDs to check
     with open(fileName, "r") as file:
         page_ids = [line.strip() for line in file if line.strip()]
-
-    username, password = get_credentials()
-    apiAuth = HTTPBasicAuth(username, password)
 
     # start plantuml docker container
     start_plantuml_container()
@@ -243,9 +291,10 @@ def runScript(fileName, server_url="http://localhost:8080"):
             counter += 1
 
             # get the image and source code
-            image_data, source_code = process_macro(macro, server_url, uml_id, page_id, skipped_macro_log)
+            image_data, source_code = process_macro(macro, server_url, uml_id, page_id, skipped_macro_log, unresolved_include_log)
             
             # if the macro could not be processed, we want to continue
+            # already logged in the process_macro function
             if not image_data:
                 continue
 
@@ -267,6 +316,11 @@ def runScript(fileName, server_url="http://localhost:8080"):
             hidden_macro_elem = etree.Element("{%s}structured-macro" % AC_NS, nsmap=NSMAP)
             hidden_macro_elem.set("{%s}name" % AC_NS, "expand")
 
+            # Add the title parameter to customize the expand button
+            title_elem = etree.SubElement(hidden_macro_elem, "{%s}parameter" % AC_NS)
+            title_elem.set("{%s}name" % AC_NS, "title")
+            title_elem.text = "Show Source Code"  # Customize this title as needed
+
             # Add the rich-text-body to hold the content
             rich_body_elem = etree.SubElement(hidden_macro_elem, "{%s}rich-text-body" % AC_NS)
 
@@ -274,7 +328,6 @@ def runScript(fileName, server_url="http://localhost:8080"):
             pre_elem = etree.SubElement(rich_body_elem, "pre")
             pre_elem.text = source_code  # no CDATA needed; <pre> will preserve formatting
 
-            
             # get current location of macro for replacement
             parent = macro.getparent()
             macro_index = parent.index(macro)
@@ -311,6 +364,10 @@ def runScript(fileName, server_url="http://localhost:8080"):
             append_to_log(page_log, [page_id, "Yes", "Page updated successfully"])
         else:
             append_to_log(page_log, [page_id, "No", f"Failed to update page: {update_response.status_code}"])
+    
+    # Stop and remove the container
+    subprocess.run(["docker", "stop", "plantuml_server"], check=True)
+    subprocess.run(["docker", "rm", "plantuml_server"], check=True)
             
     print("Script finished")
 
