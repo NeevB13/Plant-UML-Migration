@@ -1,5 +1,6 @@
 import datetime
 from io import BytesIO
+import json
 import os
 import re
 import requests
@@ -24,7 +25,7 @@ def initialise_logs():
     approval_log = f"approval_log_{startTimestamp}.csv"
 
     LOG_DEFS = {
-        page_log : ['timestamp', 'page_id', 'Successfully_Updated', 'message'],
+        page_log : ['timestamp', 'page_id', 'Successfully_Updated', 'message', 'comment_message'],
         skipped_macro_log : ['timestamp', 'uml_id', 'page_id', 'error_message'],
         unresolved_include_log : ['timestamp', 'uml_id', 'page_id'],
         approval_log : ['timestamp', 'page_id']
@@ -212,6 +213,40 @@ def start_plantuml_container():
         print("PlantUML Docker container started.")
     except subprocess.CalledProcessError as e:
         print("Failed to start PlantUML container:", e)
+
+def add_comment_to_page(page_id, apiAuth, page_log):
+    url = f"https://confluence.service.anz/rest/api/content/{page_id}/child/comment"
+
+    data = {
+        "type": "comment",
+        "container": {
+            "id": page_id,
+            "type": "page"
+        },
+        "body": {
+            "storage": {
+                "value": "This page has been modified as, following migration to the Confluence Cloud, the PlantUML macro will no longer be available. To resolve this we have deleted the macro and replaced it with a screenshot of the latest PlantUML image. The PlantUML code has been added beneath the screenshot in the Expand Macro. Please contact atlassiancloud@anz.com if you have any questions",
+                "representation": "storage"
+            }
+        }
+    }
+    
+    print("the data is ",data)
+
+    response = requests.post(
+        url,
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
+        auth=apiAuth,
+        verify=False
+    )
+
+
+    if response.status_code == 200 or response.status_code == 201:
+        return "Comment added successfully"
+    else:
+        print(f"Failed to add comment: {response.status_code} - {response.text}")
+        return f"Failed to add comment: {response.status_code} - {response.text}"
     
 def runScript(fileName, server_url="http://localhost:8080"):
     username, password = get_credentials()
@@ -252,7 +287,6 @@ def runScript(fileName, server_url="http://localhost:8080"):
         # response includes the status code, text etc.
         # TODO: change from username and password to API key
         response = requests.get(getURL, auth=apiAuth, verify = False)
-
 
         # check if get request worked correctly
         if response.status_code != 200:
@@ -361,9 +395,11 @@ def runScript(fileName, server_url="http://localhost:8080"):
         update_response = requests.put(updateURL, headers=headers, json=payload, auth=apiAuth, verify=False)
 
         if update_response.status_code == 200:
-            append_to_log(page_log, [page_id, "Yes", "Page updated successfully"])
+            comment_message = add_comment_to_page(page_id, apiAuth, page_log)
+            append_to_log(page_log, [page_id, "Yes", "Page updated successfully", comment_message])
+            
         else:
-            append_to_log(page_log, [page_id, "No", f"Failed to update page: {update_response.status_code}"])
+            append_to_log(page_log, [page_id, "No", f"Failed to update page: {update_response.status_code}", "N/A"])
     
     # Stop and remove the container
     subprocess.run(["docker", "stop", "plantuml_server"], check=True)
