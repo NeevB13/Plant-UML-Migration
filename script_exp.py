@@ -55,12 +55,17 @@ def get_credentials():
 def get_timestamp():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-def check_approvals(page_id, apiAuth):
+def check_approvals(page_id, tree, apiAuth):
     approvalsURL = f"https://confluence.service.anz/rest/cw/1/content/{page_id}/status"
+    ns = {"ac": "http://atlassian.com/content"}
 
     response = requests.get(approvalsURL, auth=apiAuth, verify = False)
     if response.status_code == 200:
         return True
+
+    
+    return tree.xpath(".//ac:structured-macro[@ac:name='pageapproval']", namespaces=ns)    
+
     
     
 
@@ -328,7 +333,7 @@ def runScript(fileName, server_url="http://localhost:8080"):
         title = data["title"]
         current_version = data["version"]["number"]
 
-        print("Current body:\n", current_body) # Just to test
+        # print("Current body:\n", current_body) # Just to test
 
         # Creates an etree parser
         parser = etree.XMLParser(recover=True)
@@ -336,10 +341,10 @@ def runScript(fileName, server_url="http://localhost:8080"):
         # Turn our current body into an xml tree so we can process it
         tree = etree.fromstring(f"<root xmlns:ac='http://atlassian.com/content'>{current_body}</root>", parser=parser)
 
-        print("Current tree:\n", etree.tostring(tree, pretty_print=True).decode()) # Just to test
+        # print("Current tree:\n", etree.tostring(tree, pretty_print=True).decode()) # Just to test
 
         # Check for approvals
-        if check_approvals(page_id, apiAuth):
+        if check_approvals(page_id, tree, apiAuth):
             append_to_log(approval_log, [page_id])
             continue # do not go through rest of process
 
@@ -401,14 +406,14 @@ def runScript(fileName, server_url="http://localhost:8080"):
             parent.insert(macro_index+1, hidden_macro_elem)
 
         
-        print("modified tree:\n", etree.tostring(tree, pretty_print=True).decode()) # Just to test
+        # print("modified tree:\n", etree.tostring(tree, pretty_print=True).decode()) # Just to test
 
         final_tree = wrap_puml_in_cdata(tree)
 
         # convert etree to string to send to confluence api
         new_body = etree.tostring(final_tree, encoding="unicode")
 
-        print("modified string:\n", new_body) # Just to test
+        # print("modified string:\n", new_body) # Just to test
 
         # set header and payload for put request
         headers = {"Content-Type": "application/json"}
