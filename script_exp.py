@@ -248,7 +248,8 @@ def wrap_puml_in_cdata(tree):
 
 
 def add_comment_to_page(page_id, apiAuth, page_log):
-    url = f"https://confluence.service.anz/rest/api/content/{page_id}/child/comment"
+    # url = f"https://confluence.service.anz/rest/api/content/{page_id}/child/comment"
+    url = f"https://confluence.service.anz/rest/api/content"
 
     data = {
         "type": "comment",
@@ -271,9 +272,6 @@ def add_comment_to_page(page_id, apiAuth, page_log):
         auth=apiAuth,
         verify=False
     )
-
-    getResponse = requests.get(url, auth=apiAuth, verify=False)
-    print(getResponse, getResponse.text)
 
 
     if response.status_code == 200 or response.status_code == 201:
