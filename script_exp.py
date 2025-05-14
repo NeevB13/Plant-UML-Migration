@@ -59,7 +59,10 @@ def check_approvals(page_id, apiAuth):
     approvalsURL = f"https://confluence.service.anz/rest/cw/1/content/{page_id}/status"
 
     response = requests.get(approvalsURL, auth=apiAuth, verify = False)
-    return response.status_code == 200
+    if response.status_code == 200:
+        return True
+    
+    
 
 
 def extract_plantumlrender_code(node):
@@ -107,7 +110,7 @@ def render_plantuml_to_image(source_code: str, server_url: str) -> BytesIO:
         if response.status_code == 200:
             return BytesIO(response.content)
         else:
-            print(f"PlantUML server error: {response.status_code}")
+            # print(f"PlantUML server error: {response.status_code}")
             return None
     except Exception as e:
         print(f"Error connecting to PlantUML server: {e}")
@@ -119,6 +122,9 @@ def process_includes(source_code: str, include_dir: str) -> str | None:
 
     for line in lines:
         stripped = line.strip()
+        if stripped.startswith("!includeurl"):
+            url = stripped[len("!includeurl"):].strip()
+            return False, url  # Early exit with unresolved URL
         if stripped.startswith("!include"):
             # Match everything after !include and optional whitespace
             match = re.match(r"!include\s+(.*)", stripped)
@@ -214,6 +220,28 @@ def start_plantuml_container():
     except subprocess.CalledProcessError as e:
         print("Failed to start PlantUML container:", e)
 
+from lxml import etree
+
+def wrap_puml_in_cdata(tree):
+    """
+    Wraps the content of all <ac:plain-text-body> elements in CDATA.
+    
+    Parameters:
+        tree (etree._Element): An lxml Element representing the root of the XML tree.
+    
+    Returns:
+        etree._Element: The modified tree with CDATA wrapped where needed.
+    """
+    ns = {"ac": "http://atlassian.com/content"}
+    
+    for elem in tree.xpath(".//ac:plain-text-body", namespaces=ns):
+        # Only wrap if text exists and is not already CDATA
+        if elem.text and not isinstance(elem.text, etree.CDATA):
+            elem.text = etree.CDATA(elem.text)
+    
+    return tree
+
+
 def add_comment_to_page(page_id, apiAuth, page_log):
     url = f"https://confluence.service.anz/rest/api/content/{page_id}/child/comment"
 
@@ -230,8 +258,6 @@ def add_comment_to_page(page_id, apiAuth, page_log):
             }
         }
     }
-    
-    print("the data is ",data)
 
     response = requests.post(
         url,
@@ -241,11 +267,13 @@ def add_comment_to_page(page_id, apiAuth, page_log):
         verify=False
     )
 
+    getResponse = requests.get(url, auth=apiAuth, verify=False)
+    print(getResponse, getResponse.text)
+
 
     if response.status_code == 200 or response.status_code == 201:
         return "Comment added successfully"
     else:
-        print(f"Failed to add comment: {response.status_code} - {response.text}")
         return f"Failed to add comment: {response.status_code} - {response.text}"
     
 def runScript(fileName, server_url="http://localhost:8080"):
@@ -271,11 +299,6 @@ def runScript(fileName, server_url="http://localhost:8080"):
         counter = 1
 
         print(f"Processing page {page_id}...")
-        
-        # Check for approvals
-        if check_approvals(page_id, apiAuth):
-            append_to_log(approval_log, [page_id])
-            continue # do not go through rest of process
 
         # no approvals on page so keep going
         # save url for get call
@@ -300,11 +323,12 @@ def runScript(fileName, server_url="http://localhost:8080"):
                 append_to_log(page_log, [page_id, "No", f"{response.status_code}: page not processed"])
             continue # do not go through rest of process
         
-        
         data = response.json()
         current_body = data["body"]["storage"]["value"]
         title = data["title"]
         current_version = data["version"]["number"]
+
+        print("Current body:\n", current_body) # Just to test
 
         # Creates an etree parser
         parser = etree.XMLParser(recover=True)
@@ -312,7 +336,12 @@ def runScript(fileName, server_url="http://localhost:8080"):
         # Turn our current body into an xml tree so we can process it
         tree = etree.fromstring(f"<root xmlns:ac='http://atlassian.com/content'>{current_body}</root>", parser=parser)
 
-        # print(etree.tostring(tree, pretty_print=True).decode()) # Just to test
+        print("Current tree:\n", etree.tostring(tree, pretty_print=True).decode()) # Just to test
+
+        # Check for approvals
+        if check_approvals(page_id, apiAuth):
+            append_to_log(approval_log, [page_id])
+            continue # do not go through rest of process
 
         # extracts all plantUML macro nodes
         plantMacros = tree.xpath(
@@ -371,10 +400,15 @@ def runScript(fileName, server_url="http://localhost:8080"):
             parent.insert(macro_index, image_elem)
             parent.insert(macro_index+1, hidden_macro_elem)
 
-            # print(etree.tostring(tree, pretty_print=True).decode()) # Just to test
-            
+        
+        print("modified tree:\n", etree.tostring(tree, pretty_print=True).decode()) # Just to test
+
+        final_tree = wrap_puml_in_cdata(tree)
+
         # convert etree to string to send to confluence api
-        new_body = etree.tostring(tree, encoding="unicode")
+        new_body = etree.tostring(final_tree, encoding="unicode")
+
+        print("modified string:\n", new_body) # Just to test
 
         # set header and payload for put request
         headers = {"Content-Type": "application/json"}
