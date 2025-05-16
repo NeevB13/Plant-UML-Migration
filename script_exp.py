@@ -17,6 +17,18 @@ import csv
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def initialise_logs():
+    """
+    Initializes log files for tracking the script's progress and issues.
+
+    Creates four CSV log files:
+    - `page_log`: Logs the status of page updates.
+    - `skipped_macro_log`: Logs macros that were skipped due to errors.
+    - `unresolved_include_log`: Logs unresolved include files.
+    - `approval_log`: Logs pages that were skipped due to having approvals.
+
+    Returns:
+        tuple: A tuple containing the filenames of the four log files.
+    """
     # Create csv for pages
     startTimestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     page_log = f"page_log_{startTimestamp}.csv"
@@ -25,10 +37,10 @@ def initialise_logs():
     approval_log = f"approval_log_{startTimestamp}.csv"
 
     LOG_DEFS = {
-        page_log : ['timestamp', 'page_id', 'Successfully_Updated', 'message', 'comment_message'],
-        skipped_macro_log : ['timestamp', 'uml_id', 'page_id', 'error_message'],
-        unresolved_include_log : ['timestamp', 'uml_id', 'page_id'],
-        approval_log : ['timestamp', 'page_id']
+        page_log : ['timestamp', 'URL', 'page_id', 'Successfully_Updated', 'message', 'comment_message'],
+        skipped_macro_log : ['timestamp', 'URL', 'uml_id', 'page_id', 'error_message'],
+        unresolved_include_log : ['timestamp', 'URL', 'uml_id', 'page_id'],
+        approval_log : ['timestamp', 'URL', 'page_id']
     }
 
     for filename, headers in LOG_DEFS.items():
@@ -40,22 +52,44 @@ def initialise_logs():
 
 
 def append_to_log(filename, data):
-    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_entry = [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")] + data
+    """
+    Appends a log entry to the specified log file.
+
+    Args:
+        filename (str): The name of the log file.
+        data (list): A list of data to be written as a row in the log file.
+    """
+    timeNow = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    url = "https://confluence.service.anz/pages/viewpage.action?pageId={page_id}"
+    log_entry = [timeNow, url] + data
     with open(filename, mode='a', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(log_entry)
 
 def get_credentials():
+    """
+    Prompts the user to enter their Confluence username and password.
+
+    Returns:
+        tuple: A tuple containing the username and password.
+    """
     username = input("Enter your Confluence username: ")
     password = getpass.getpass("Enter your Confluence password: ")
     # password = input("Enter your Confluence password: ") # for api key
     return username, password
 
-def get_timestamp():
-    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
 def check_approvals(page_id, tree, apiAuth):
+    """
+    Checks if a Confluence page has approvals.
+
+    Args:
+        page_id (str): The ID of the Confluence page.
+        tree (etree._Element): The XML tree of the page content.
+        apiAuth (HTTPBasicAuth): The authentication object for API requests.
+
+    Returns:
+        bool: True if the page has approvals, False otherwise.
+    """
     approvalsURL = f"https://confluence.service.anz/rest/cw/1/content/{page_id}/status"
     ns = {"ac": "http://atlassian.com/content"}
 
@@ -66,11 +100,17 @@ def check_approvals(page_id, tree, apiAuth):
     
     return tree.xpath(".//ac:structured-macro[@ac:name='pageapproval']", namespaces=ns)    
 
-    
-    
-
 
 def extract_plantumlrender_code(node):
+    """
+    Extracts the PlantUML source code from a `plantumlrender` macro.
+
+    Args:
+        node (etree._Element): The XML node representing the macro.
+
+    Returns:
+        str: The extracted PlantUML source code, or None if extraction fails.
+    """
     # check for pre tag and process
     pre = node.find(".//pre")
     if pre:
@@ -115,13 +155,23 @@ def render_plantuml_to_image(source_code: str, server_url: str) -> BytesIO:
         if response.status_code == 200:
             return BytesIO(response.content)
         else:
-            # print(f"PlantUML server error: {response.status_code}")
             return None
     except Exception as e:
-        print(f"Error connecting to PlantUML server: {e}")
         return None
 
 def process_includes(source_code: str, include_dir: str) -> str | None:
+    """
+    Processes `!include` statements in the PlantUML source code.
+
+    Args:
+        source_code (str): The PlantUML source code.
+        include_dir (str): The directory containing include files.
+
+    Returns:
+        tuple: A tuple containing:
+            - bool: True if all includes were resolved, False otherwise.
+            - str: The updated source code or the unresolved file name.
+    """
     updated_lines = []
     lines = source_code.splitlines()
 
@@ -152,7 +202,6 @@ def process_includes(source_code: str, include_dir: str) -> str | None:
                     updated_line = f"!include {container_path}"
                     updated_lines.append(updated_line)
                 else:
-                    print(f"Include file not found: {container_path}")
                     return False, filename  # Exit early
             else:
                 updated_lines.append(line)
@@ -162,6 +211,22 @@ def process_includes(source_code: str, include_dir: str) -> str | None:
     return True, "\n".join(updated_lines)
 
 def process_macro(macro, server_url, uml_id, page_id, skipped_macro_log, unresolved_include_log):
+    """
+    Processes a PlantUML macro and renders it into an image.
+
+    Args:
+        macro (etree._Element): The XML node representing the macro.
+        server_url (str): The URL of the PlantUML server.
+        uml_id (str): A unique ID for the UML diagram.
+        page_id (str): The ID of the Confluence page.
+        skipped_macro_log (str): The log file for skipped macros.
+        unresolved_include_log (str): The log file for unresolved includes.
+
+    Returns:
+        tuple: A tuple containing:
+            - BytesIO: The rendered UML image, or None if rendering fails.
+            - str: The original or processed source code.
+    """
     # Determine whether the macro is plantuml or plantumlrender
     macro_type = macro.attrib.get('{http://atlassian.com/content}name')
 
@@ -211,6 +276,14 @@ def process_macro(macro, server_url, uml_id, page_id, skipped_macro_log, unresol
     return image_data, source_code
 
 def start_plantuml_container():
+    """
+    Starts a Docker container running the PlantUML server.
+
+    Mounts the `include_files` directory into the container for resolving includes.
+
+    Raises:
+        subprocess.CalledProcessError: If the Docker container fails to start.
+    """
     includes_path = os.path.join(os.getcwd(), "include_files")
     try:
         subprocess.run([
@@ -248,7 +321,17 @@ def wrap_puml_in_cdata(tree):
 
 
 def add_comment_to_page(page_id, apiAuth, page_log):
-    # url = f"https://confluence.service.anz/rest/api/content/{page_id}/child/comment"
+    """
+    Adds a comment to a Confluence page indicating that it was modified.
+
+    Args:
+        page_id (str): The ID of the Confluence page.
+        apiAuth (HTTPBasicAuth): The authentication object for API requests.
+        page_log (str): The log file for page updates.
+
+    Returns:
+        str: A message indicating the result of the operation.
+    """
     url = f"https://confluence.service.anz/rest/api/content"
 
     data = {
@@ -280,6 +363,13 @@ def add_comment_to_page(page_id, apiAuth, page_log):
         return f"Failed to add comment: {response.status_code} - {response.text}"
     
 def runScript(fileName, server_url="http://localhost:8080"):
+    """
+    Main function to process Confluence pages and replace PlantUML macros.
+
+    Args:
+        fileName (str): The name of the file containing the list of page IDs.
+        server_url (str): The URL of the PlantUML server (default: "http://localhost:8080").
+    """
     username, password = get_credentials()
     apiAuth = HTTPBasicAuth(username, password)
 
@@ -443,7 +533,6 @@ def runScript(fileName, server_url="http://localhost:8080"):
     subprocess.run(["docker", "rm", "plantuml_server"], check=True)
             
     print("Script finished")
-
 
 if len(sys.argv) != 2:
     print("Usage: python script.py <filename>")
