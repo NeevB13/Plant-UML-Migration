@@ -60,7 +60,7 @@ def append_to_log(filename, data):
         data (list): A list of data to be written as a row in the log file.
     """
     timeNow = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    url = "https://confluence.service.anz/pages/viewpage.action?pageId={page_id}"
+    url = "https://confluence.service.anz/pages/viewpage.action?pageId={page_id} "
     log_entry = [timeNow, url] + data
     with open(filename, mode='a', newline='') as f:
         writer = csv.writer(f)
@@ -470,19 +470,19 @@ def runScript(fileName, server_url="http://localhost:8080"):
 
             # Create the hidden macro (expand)
             hidden_macro_elem = etree.Element("{%s}structured-macro" % AC_NS, nsmap=NSMAP)
-            hidden_macro_elem.set("{%s}name" % AC_NS, "expand")
+            hidden_macro_elem.set("{%s}name" % AC_NS, "details")
 
             # Add the title parameter to customize the expand button
-            title_elem = etree.SubElement(hidden_macro_elem, "{%s}parameter" % AC_NS)
-            title_elem.set("{%s}name" % AC_NS, "title")
-            title_elem.text = "Show Source Code"  # Customize this title as needed
+            hide_param = etree.SubElement(hidden_macro_elem, "{%s}parameter" % AC_NS)
+            hide_param.set("{%s}name" % AC_NS, "hidden")
+            hide_param.text = "true"  # Customize this title as needed
 
             # Add the rich-text-body to hold the content
             rich_body_elem = etree.SubElement(hidden_macro_elem, "{%s}rich-text-body" % AC_NS)
 
             # Add a pre tag to show the source code as preformatted text
             pre_elem = etree.SubElement(rich_body_elem, "pre")
-            pre_elem.text = source_code  # no CDATA needed; <pre> will preserve formatting
+            pre_elem.text = source_code  # <pre> will preserve formatting
 
             # get current location of macro for replacement
             parent = macro.getparent()
