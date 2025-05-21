@@ -441,6 +441,12 @@ def runScript(fileName, server_url="http://localhost:8080"):
             '//ac:structured-macro[@ac:name="plantuml" or @ac:name="plantumlrender"]', namespaces={'ac': 'http://atlassian.com/content'}
         )
 
+        # checks if there are no plantUML macros on the page
+        if len(plantMacros) == 0:
+            # add to log to indicate no plantUML macros
+            append_to_log(page_log, [page_id, "No", "No PlantUML macros found", "N/A"])
+            continue
+
         for macro in plantMacros:
             # create id for uml and increment counter
             uml_id = f"puml_{page_id}_{str(counter)}"
