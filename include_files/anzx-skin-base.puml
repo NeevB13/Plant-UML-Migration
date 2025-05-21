@@ -1,0 +1,166 @@
+' ANZ Internal Colour Palette, do not edit
+!define COL_DEEP_CURRENT #004165
+!define COL_STONE #394A58
+!define COL_SEAGRASS #589199
+!define COL_OCEAN_BLUE #007DBA
+!define COL_TURQUOISE_SEA #00C6D7
+!define COL_SKY #5BC6E8
+!define COL_HORIZON #C6DFEA
+!define COL_SEA_SPRAY #B9C9D0
+!define COL_MT_COOK_RIVER #B9CCC3
+!define COL_SPINIFEX #D3CD8B
+!define COL_DRIFTWOOD #EDE8C4
+!define COL_GOLDEN_SHORE #FDC82F
+!define COL_WEST_COAST_SUNSET #DF7A00
+!define COL_ANZ_GREY #747678
+!define COL_ROCKPOOL #AA9C8F
+
+!define COL_DEEP_CURRENT_75 #407186
+!define COL_STONE_75 #6B7782
+!define COL_SEAGRASS_75 #82ADB3
+!define COL_OCEAN_BLUE_75 #409ECB
+!define COL_TURQUOISE_SEA_75 #40D4E1
+!define COL_SKY_75 #84D4EF
+!define COL_HORIZON_75 #D4E7EF
+!define COL_SEA_SPRAY_75 #CBD7DC
+!define COL_MT_COOK_RIVER_75 #CBD9D2
+!define COL_SPINIFEX_75 #DEDAAE
+!define COL_DRIFTWOOD_75 #F2EED3
+!define COL_GOLDEN_SHORE_75 #FED663
+!define COL_WEST_COAST_SUNSET_75 #E79B40
+!define COL_ANZ_GREY_75 #97989A
+!define COL_ROCKPOOL_75 #BFB5AB
+
+!define COL_DEEP_CURRENT_50 #7FA0B2
+!define COL_STONE_50 #9CA4AB
+!define COL_SEAGRASS_50 #ABC8CC
+!define COL_OCEAN_BLUE_50 #7FBEDC
+!define COL_TURQUOISE_SEA_50 #7FE2EB
+!define COL_SKY_50 #ADE2F3
+!define COL_HORIZON_50 #E2EFF4
+!define COL_SEA_SPRAY_50 #E2E8EC
+!define COL_MT_COOK_RIVER_50 #DCE5E1
+!define COL_SPINIFEX_50 #E9E6C5
+!define COL_DRIFTWOOD_50 #F6F3E1
+!define COL_GOLDEN_SHORE_50 #FEE397
+!define COL_WEST_COAST_SUNSET_50 #EFBC7F
+!define COL_ANZ_GREY_50 #B9BABB
+!define COL_ROCKPOOL_50 #D4CDC7
+
+!define COL_DEEP_CURRENT_25 #BFCFD8
+!define COL_STONE_25 #CDD2D5
+!define COL_SEAGRASS_25 #D5E3E5
+!define COL_OCEAN_BLUE_25 #BFDEEE
+!define COL_TURQUOISE_SEA_25 #BFF1F5
+!define COL_SKY_25 #D6F1F9
+!define COL_HORIZON_25 #F1F7FA
+!define COL_SEA_SPRAY_25 #EDF1F3
+!define COL_MT_COOK_RIVER_25 #EDF2F0
+!define COL_SPINIFEX_25 #F4F2E2
+!define COL_DRIFTWOOD_25 #FAF9F0
+!define COL_GOLDEN_SHORE_25 #FEF1CB
+!define COL_WEST_COAST_SUNSET_25 #F7DEBF
+!define COL_ANZ_GREY_25 #DCDDDD
+!define COL_ROCKPOOL_25 #EAE6E3
+
+' Reusable colours/gradients - edit to make broad changes to colour scheme
+!define ANZ_PARTICIPANT_BG White
+!define ANZ_PARTICIPANT_BORDER COL_GOLDEN_SHORE
+!define ANZ_TITLEBOX_BG COL_SEA_SPRAY_75-COL_SEA_SPRAY_50
+!define ANZ_TITLEBOX_BODY_BG COL_SEA_SPRAY_25-White
+!define ANZ_TITLEBOX_BORDER COL_SEA_SPRAY
+!define ANZ_TITLEBOX_WEIGHT 1
+!define ANZ_TITLE_FONT_SIZE 20
+!define ANZ_TITLE_FONT_COLOR White
+
+' Application of colours/gradients/styles - edit for fine control
+' Sequence diagrams
+skinparam ParticipantBackgroundColor ANZ_PARTICIPANT_BG
+skinparam ParticipantBorderColor ANZ_PARTICIPANT_BORDER
+skinparam ActorBackgroundColor ANZ_PARTICIPANT_BG
+skinparam ActorBorderColor ANZ_PARTICIPANT_BORDER
+skinparam BoundaryBackgroundColor ANZ_PARTICIPANT_BG
+skinparam BoundaryBorderColor ANZ_PARTICIPANT_BORDER
+skinparam ControlBackgroundColor ANZ_PARTICIPANT_BG
+skinparam ControlBorderColor ANZ_PARTICIPANT_BORDER
+skinparam EntityBackgroundColor ANZ_PARTICIPANT_BG
+skinparam EntityBorderColor ANZ_PARTICIPANT_BORDER
+skinparam DatabaseBackgroundColor ANZ_PARTICIPANT_BG
+skinparam DatabaseBorderColor ANZ_PARTICIPANT_BORDER
+skinparam CollectionsBackgroundColor ANZ_PARTICIPANT_BG
+skinparam CollectionsBorderColor ANZ_PARTICIPANT_BORDER
+
+skinparam SequenceGroupBackgroundColor ANZ_TITLEBOX_BG
+skinparam SequenceGroupBodyBackgroundColor ANZ_TITLEBOX_BODY_BG
+skinparam SequenceGroupBorderColor ANZ_TITLEBOX_BORDER
+skinparam SequenceGroupBorderThickness ANZ_TITLEBOX_WEIGHT
+skinparam SequenceReferenceHeaderBackgroundColor ANZ_TITLEBOX_BG
+skinparam SequenceReferenceBackgroundColor ANZ_TITLEBOX_BODY_BG
+skinparam SequenceReferenceBorderColor ANZ_TITLEBOX_BORDER
+skinparam SequenceReferenceBorderThickness ANZ_TITLEBOX_WEIGHT
+
+skinparam SequenceBoxBackgroundColor COL_ANZ_GREY_25
+skinparam SequenceBoxBorderColor COL_ANZ_GREY
+
+skinparam SequenceDividerBackgroundColor COL_SPINIFEX_50
+skinparam SequenceDividerBorderColor COL_SPINIFEX
+skinparam SequenceDividerBorderThickness 1
+
+skinparam SequenceLifeLineBorderColor COL_TURQUOISE_SEA
+
+' General settings
+skinparam NoteBackgroundColor COL_WEST_COAST_SUNSET_25
+skinparam NoteBorderColor COL_WEST_COAST_SUNSET
+skinparam ArrowColor COL_DEEP_CURRENT
+skinparam TitleBorderThickness 0
+skinparam TitleBackgroundColor COL_OCEAN_BLUE_50-COL_OCEAN_BLUE
+skinparam SequenceTitleFontSize ANZ_TITLE_FONT_SIZE
+skinparam SequenceTitleFontColor ANZ_TITLE_FONT_COLOR
+skinparam TitleFontSize ANZ_TITLE_FONT_SIZE
+skinparam TitleFontColor ANZ_TITLE_FONT_COLOR
+skinparam DiagramBorderColor COL_ANZ_GREY
+skinparam RoundCorner 10
+skinparam Padding 2
+skinparam DefaultFontName "Lucida Sans"
+skinparam DefaultMonospacedFontName "Lucida Sans Typewriter"
+' Abstract
+skinparam StereotypeABackgroundColor COL_TURQUOISE_SEA
+' Annotation (@)
+skinparam StereotypeNBackgroundColor COL_TURQUOISE_SEA
+' Class
+skinparam StereotypeCBackgroundColor COL_SPINIFEX
+' Enum
+skinparam StereotypeEBackgroundColor COL_WEST_COAST_SUNSET
+' Interface
+skinparam StereotypeIBackgroundColor COL_OCEAN_BLUE
+
+' Component diagrams
+skinparam ComponentBackgroundColor ANZ_PARTICIPANT_BG
+skinparam ComponentBorderColor ANZ_PARTICIPANT_BORDER
+skinparam InterfaceBackgroundColor COL_SPINIFEX_50
+skinparam InterfaceBorderColor COL_SPINIFEX
+skinparam PackageBackgroundColor ANZ_TITLEBOX_BODY_BG
+skinparam PackageBorderColor ANZ_TITLEBOX_BORDER
+
+skinparam QueueBackgroundColor ANZ_PARTICIPANT_BG
+skinparam QueueBorderColor ANZ_PARTICIPANT_BORDER
+skinparam DatabaseBackgroundColor ANZ_PARTICIPANT_BG
+skinparam DatabaseBorderColor ANZ_PARTICIPANT_BORDER
+
+' Use case diagrams
+skinparam UsecaseBackgroundColor COL_SKY_25
+skinparam UsecaseBorderColor COL_SKY
+skinparam ClassBackgroundColor ANZ_PARTICIPANT_BG
+
+' Class diagrams
+skinparam ClassBorderColor ANZ_PARTICIPANT_BORDER
+skinparam ClassBorderThickness 1
+
+' Activity Diagrams (Beta)
+skinparam ActivityBackgroundColor COL_SKY_25
+skinparam ActivityBorderColor COL_SKY
+skinparam ActivityDiamondBackgroundColor ANZ_PARTICIPANT_BG
+skinparam ActivityDiamondBorderColor ANZ_PARTICIPANT_BORDER
+skinparam PartitionBackgroundColor ANZ_TITLEBOX_BODY_BG
+skinparam PartitionBorderColor ANZ_TITLEBOX_BORDER
+skinparam PartitionBorderThickness ANZ_TITLEBOX_WEIGHT

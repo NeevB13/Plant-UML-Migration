@@ -1,0 +1,57 @@
+!unquoted procedure $app($id)
+!$data={"participants" :[
+{"id": "ra" ,"label": "Risk Analytics", "desc": "Risk Analytics extracts data from multiple results tables in Risk Authority and Risk Origins and aggregates that data into SAS/TAB based extracts", "txid": "1168628"},
+{"id": "osx" ,"label": "OneSumX", "desc": "Provides Regulatory Reporting", "txid": "1001241"},
+{"id": "atmpos" ,"label": "ATM and POS Switch", "desc": "Base24 Switch for ATM and POS", "txid": "290841"},
+{"id": "bdp" ,"label": "Big Data Platform", "desc": "Cloudera Big Data Platform supporting analytics; forensics and remediation", "txid": "1140459"},
+{"id": "bih" ,"label": "Batch Integration Hub", "desc": "File Processing Intermediary", "txid": "1202238"},
+{"id": "btr" ,"label": "CIS-BTR", "desc": "Account Balances and Transactions", "txid": "230658"},
+{"id": "cap" ,"label": "Customer and Account Processing", "desc": "Customer and Account Processing (CAP) - AU", "txid": "292773"},
+{"id": "cdms" ,"label": "Contact Data Management System", "desc": "Also known as CSP Party Service", "txid": "1269325"},
+{"id": "cis" ,"label": "CAP-CIS", "desc": "Provides Customer Management for CAP", "txid": "231572"},
+{"id": "cosmos" ,"label": "Cosmos", "desc": "Google Cloud Data Platform", "txid": "Null"},
+{"id": "crdh" ,"label": "Credit Risk", "desc": "Credit Risk Data Mart", "txid": "1202233"},
+{"id": "csp" ,"label": "csp", "desc": "Customer Service Platform", "txid": "1267256"},
+{"id": "ctm" ,"label": "Core Transaction Manager", "desc": "Provides Transaction Management", "txid": "292748"},
+{"id": "ecdm" ,"label": "Enterprise Customer Data Mart", "desc": "Provides a repository of retail aggregated Australian customer level information", "txid": "293440"},
+{"id": "edw" ,"label": "Enterprise Data Warehouse", "desc": "Teradata hosted warehouse", "txid": "221380"},
+{"id": "fab" ,"label": "Fabric", "desc": "manages data exchanges with mobile applications", "txid": "Null"},
+{"id": "falcon" ,"label": "Falcon", "desc": "Fraud transaction checking", "txid": "1016162"},
+{"id": "fen" ,"label": "Fenergo", "desc": "workflow", "txid": "Null"},
+{"id": "giw" ,"label": "Global Information Warehouse", "desc": "Legacy Data Source for many downstream consumers", "txid": "183564"},
+{"id": "psgl" ,"label": "PeopleSoft", "desc": "Provides General Ledger accounting", "txid": "136778"},
+{"id": "hubble" ,"label": "Hubble", "desc": "Qlik", "txid": "null"},
+{"id": "mule" ,"label": "Mulesoft", "desc": "API Gateway between ANZ and SaaS Service providers", "txid": "Null"},
+{"id": "netreveal" ,"label": "NetReveal", "desc": "aml & sanctions checking", "txid": "1315533"},
+{"id": "ocv" ,"label": "One Customer View", "desc": "The Customer Master", "txid": "1278858"},
+{"id": "ofsaa" ,"label": "Group OFSAA (Group Liquidity Reporting and FTP)", "desc": "Provides Group Liquidity Reporting, Funds Transfer Pricing and NFSR reporting", "txid": "300368"},
+{"id": "psp" ,"label": "Payment Service Platform", "desc": "PSP is the application that provides payments and related services to the various payment initiating systems like channels. The payment instructions are sent to PSP for processing, which orchestrates funding, FX, fees posting, clearing,  nostro accounting etc to execute the payment instruction to its completion.", "txid": "1267246"},
+{"id": "radar" ,"label": "RADAR", "desc": "Calculates the retail risk attributes required to support IFRS9 Accounting standard for collective provisions", "txid": "1311889"},
+{"id": "ray" ,"label": "Risk Authority (RAY)", "desc": "Capital Calculation and Regulatory Reproting (Moodys", "txid": "309198"},
+{"id": "rds" ,"label": "Retail Data Store (RDS)", "desc": "Provides retail risk data to support retail model development, monitoring & validation", "txid": "1311134"},
+{"id": "rr" ,"label": "Risk Reporting", "desc": "Business owned and managed SQL server based environment used to support operational, management and regulatory risk reporting.", "txid": "40449"},
+{"id": "rris" ,"label": "RRIS", "desc": "Retail Risk Information Store (RRIS", "txid": "281774"},
+{"id": "seg" ,"label": "Segmentation & Pooling", "desc": "Source retail exposures and scoring data.\nObtains the retail models that determine the credit risk factors for wholesale capital calculations. \nProvide info to corporate wich is then sent to the Risk Authority", "txid": "252712"},
+{"id": "trp" ,"label": "Tax Reporting Platform", "desc": "Tax Reporting to satisfy GLOBAL FATCA/CRS laws", "txid": "1315245"},
+{"id": "zaf" ,"label": "Zafin", "desc": "Product Catalog Master and Fee & Pricing Engine", "txid": "Null"}]}
+
+!$id_exist = %false()
+!foreach $part in $data.participants
+  !if $part.id == $id
+    !$id_exist = %true()
+    !if $part.txid 
+        !$label = "[[https://troux.service.anz/tip/?seID=BD156363-EF7B-4C76-B5CD-FA472B7EADBF&targetID=CE7A332C-7B90-4F22-A373-A6925D0CB2D9&scSelTab=A558A603-85F7-4683-81F8-DE595C644274&loadComponentID=" + $txid.txid + " " + $part.label + "]] "
+    !else
+        !$label = $part.label 
+    !endif
+    !if $INCLUDE_DESC == "Y"
+       System($part.id, $label, $part.desc)
+    !else
+       System($part.id, $label)
+    !endif
+  !endif
+!endfor
+!if %not($id_exist)
+System($id, "enter label for <u:red>$id")
+!endif
+!endprocedure
