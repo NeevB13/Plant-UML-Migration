@@ -51,7 +51,7 @@ def initialise_logs():
     return page_log, skipped_macro_log, unresolved_include_log, approval_log
 
 
-def append_to_log(filename, data):
+def append_to_log(filename, data, page_id):
     """
     Appends a log entry to the specified log file.
 
@@ -235,7 +235,7 @@ def process_macro(macro, server_url, uml_id, page_id, skipped_macro_log, unresol
         node = macro.find('.//ac:plain-text-body', namespaces={'ac': 'http://atlassian.com/content'})
         # check if something wrong with node
         if node is None or node.text is None:
-            append_to_log(skipped_macro_log, [uml_id, page_id, "plantuml macro has incorrect syntax"])
+            append_to_log(skipped_macro_log, [uml_id, page_id, "plantuml macro has incorrect syntax"], page_id)
             return None, None
         # store source code
         source_code = node.text
@@ -247,19 +247,19 @@ def process_macro(macro, server_url, uml_id, page_id, skipped_macro_log, unresol
         source_code = extract_plantumlrender_code(node)
         # handle bad node
         if not source_code:
-            append_to_log(skipped_macro_log, [uml_id, page_id, "plantumlrender macro has incorrect syntax"])
+            append_to_log(skipped_macro_log, [uml_id, page_id, "plantumlrender macro has incorrect syntax"], page_id)
             return None, None
         
     else:
         # if the macro's type is not plantUML raise an error
-        append_to_log(skipped_macro_log, [uml_id, page_id, f"wrong macro type: {macro_type}"])
+        append_to_log(skipped_macro_log, [uml_id, page_id, f"wrong macro type: {macro_type}"], page_id)
         return None, None
     
     # processed is boolean on whether the includes were processed correctly
     # text is unresolved file if not processed and code to render if processed
     processed, text = process_includes(source_code, "/app/include_files")
     if not processed:
-        append_to_log(unresolved_include_log, [uml_id, page_id, f"Include files not resolved: {text}"])
+        append_to_log(unresolved_include_log, [uml_id, page_id, f"Include files not resolved: {text}"], page_id)
         return None, source_code
     
     # if includes were correctly processed, render the code
@@ -269,7 +269,7 @@ def process_macro(macro, server_url, uml_id, page_id, skipped_macro_log, unresol
 
     # if the rendering fails, log and return accordingly
     if not image_data:
-        append_to_log(skipped_macro_log, [uml_id, page_id, "Image failed to render"])
+        append_to_log(skipped_macro_log, [uml_id, page_id, "Image failed to render"], page_id)
         return None, source_code
 
     # Return tuple to be used for updating the Confluence page
@@ -407,13 +407,13 @@ def runScript(fileName, server_url="http://localhost:8080"):
         # check if get request worked correctly
         if response.status_code != 200:
             if response.status_code == 403:
-                append_to_log(page_log, [page_id, "No", "403: access not granted"])
+                append_to_log(page_log, [page_id, "No", "403: access not granted"], page_id)
             elif response.status_code == 404:
-                append_to_log(page_log, [page_id, "No", "404: page does not exist or access not granted"])
+                append_to_log(page_log, [page_id, "No", "404: page does not exist or access not granted"], page_id)
             elif response.status_code == 502:
-                append_to_log(page_log, [page_id, "No", "502: bad gateway, likely proxy error"])
+                append_to_log(page_log, [page_id, "No", "502: bad gateway, likely proxy error"], page_id)
             else:
-                append_to_log(page_log, [page_id, "No", f"{response.status_code}: page not processed"])
+                append_to_log(page_log, [page_id, "No", f"{response.status_code}: page not processed"], page_id)
             continue # do not go through rest of process
         
         data = response.json()
@@ -433,7 +433,7 @@ def runScript(fileName, server_url="http://localhost:8080"):
 
         # Check for approvals
         if check_approvals(page_id, tree, apiAuth):
-            append_to_log(approval_log, [page_id])
+            append_to_log(approval_log, [page_id], page_id)
             continue # do not go through rest of process
 
         # extracts all plantUML macro nodes
@@ -444,7 +444,7 @@ def runScript(fileName, server_url="http://localhost:8080"):
         # checks if there are no plantUML macros on the page
         if len(plantMacros) == 0:
             # add to log to indicate no plantUML macros
-            append_to_log(page_log, [page_id, "No", "No PlantUML macros found", "N/A"])
+            append_to_log(page_log, [page_id, "No", "No PlantUML macros found", "N/A"], page_id)
             continue
 
         for macro in plantMacros:
@@ -529,10 +529,10 @@ def runScript(fileName, server_url="http://localhost:8080"):
 
         if update_response.status_code == 200:
             comment_message = add_comment_to_page(page_id, apiAuth, page_log)
-            append_to_log(page_log, [page_id, "Yes", "Page updated successfully", comment_message])
+            append_to_log(page_log, [page_id, "Yes", "Page updated successfully", comment_message], page_id)
             
         else:
-            append_to_log(page_log, [page_id, "No", f"Failed to update page: {update_response.status_code}", "N/A"])
+            append_to_log(page_log, [page_id, "No", f"Failed to update page: {update_response.status_code}", "N/A"], page_id)
     
     # Stop and remove the container
     subprocess.run(["docker", "stop", "plantuml_server"], check=True)
