@@ -1,0 +1,60 @@
+@startuml
+title Information Architecture for KYC Platform
+
+' Packages
+package "User Registration" {
+    [Registration Form] as RF
+    [Email Verification] as EV
+    [User Login] as UL
+}
+
+package "Identity Verification" {
+    [Document Upload] as DU
+    [Document Verification] as DV
+    [Biometric Verification] as BV
+}
+
+package "Compliance" {
+    ' PEP: Politically Exposed Persons
+    [PEP Check] as PEP
+    [Sanction List Screening] as SLS
+    [Transaction Monitoring] as TM
+}
+
+package "Client Management" {
+    [Client Profile] as CP
+    [Client Risk Assessment] as CRA
+    [Document Management] as DM
+}
+
+package "Reporting and Analytics" {
+    [Compliance Reports] as CR
+    [Audit Trails] as AT
+    [Risk Analysis] as RA
+}
+
+' Connections
+RF --> EV : "Validate Email"
+EV --> UL : "Enable Login"
+UL --> DU : "Upload Documents"
+
+DU --> DV : "Verify Documents"
+DV --> BV : "Biometric Scan"
+BV --> CP : "Create Client Profile"
+
+CP --> PEP : "Check PEP Status"
+CP --> SLS : "Screen Against Sanctions"
+CP --> TM : "Monitor Transactions"
+
+PEP --> CRA : "Assess Risk"
+SLS --> CRA : "Assess Risk"
+TM --> CRA : "Assess Risk"
+
+CP --> DM : "Manage Documents"
+CRA --> DM : "Update Risk Status"
+
+DM --> CR : "Generate Reports"
+CR --> AT : "Audit Compliance"
+AT --> RA : "Analyze Risks"
+
+@enduml

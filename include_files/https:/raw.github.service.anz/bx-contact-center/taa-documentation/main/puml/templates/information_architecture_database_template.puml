@@ -1,0 +1,85 @@
+@startuml
+
+!theme plain
+hide empty methods
+hide stereotypes
+
+!procedure $schema($name, $slug)
+package "$name" as $slug <<Rectangle>>
+!endprocedure
+
+!procedure $table($name, $slug)
+entity "<b>$name</b>" as $slug << (T, Orange) table >>
+!endprocedure
+
+!procedure $view($name, $slug)
+entity "<b>$name</b>" as $slug << (V, Aquamarine) view >>
+!endprocedure
+
+!procedure $pk($name)
+<color:#GoldenRod><&key></color> <b>$name</b>
+!endprocedure
+
+!procedure $fk($name)
+<color:#Silver><&key></color> $name
+!endprocedure
+
+!procedure $column($name)
+{field} <color:#White><&media-record></color> $name
+!endprocedure
+
+
+title "Publications Schema"
+
+
+$schema("PUBLICATIONS DATABASE", "id_208b5502") {
+
+  $table("AUTHORS", "id_f521e766") {
+    $pk("ID"): INTEGER NOT NULL
+    $column("FIRSTNAME"): VARCHAR NOT NULL
+    $column("LASTNAME"): VARCHAR NOT NULL
+    $column("ADDRESS1"): VARCHAR
+    $column("ADDRESS2"): VARCHAR
+    $column("CITY"): VARCHAR
+    $column("STATE"): CHARACTER
+    $column("POSTALCODE"): VARCHAR
+    $column("COUNTRY"): VARCHAR
+  }
+
+  $table("BOOKS", "id_f4a675c8") {
+    $pk("ID"): INTEGER NOT NULL
+    $column("TITLE"): VARCHAR NOT NULL
+    $column("DESCRIPTION"): VARCHAR
+    $column("PUBLISHERID"): INTEGER NOT NULL
+    $column("PUBLICATIONDATE"): DATE
+    $column("PRICE"): DOUBLE
+  }
+
+  $table("BOOKAUTHORS", "id_ead84c5d") {
+    $fk("BOOKID"): INTEGER NOT NULL
+    $fk("AUTHORID"): INTEGER NOT NULL
+    $column("SOMEDATA"): VARCHAR
+  }
+
+}
+
+
+$schema("PUBLISHER_SALES DATABASE", "id_7f7f6c20") {
+
+  $table("SALES", "id_751e68cc") {
+    $column("POSTALCODE"): VARCHAR NOT NULL
+    $column("COUNTRY"): VARCHAR NOT NULL
+    $fk("BOOKID"): INTEGER
+    $fk("COUPON_ID"): INTEGER
+    $column("PERIODENDDATE"): DATE
+    $column("TOTALAMOUNT"): DOUBLE
+  }
+
+}
+
+' Relationships
+id_208b5502.id_f521e766::ID  ||--o{ id_208b5502.id_ead84c5d::AUTHORID : FK_AUTHOR
+id_208b5502.id_f4a675c8::ID  ||--o{ id_7f7f6c20.id_751e68cc::BOOKID : FK_SALES_BOOK
+id_208b5502.id_f4a675c8::ID  ||--o{ id_208b5502.id_ead84c5d::BOOKID : FK_BOOK
+
+@enduml

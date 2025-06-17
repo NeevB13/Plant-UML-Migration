@@ -1,0 +1,64 @@
+@startuml
+
+skinparam componentStyle uml2
+skinparam LegendBackgroundColor white
+
+skinparam component<<Existing>> {
+  BackgroundColor Gainsboro
+  BorderColor DimGrey
+}
+
+skinparam component<<Leverage>> {
+  BackgroundColor CornflowerBlue
+  BorderColor MediumBlue
+}
+
+skinparam component<<New>> {
+  BackgroundColor Gold
+  BorderColor GoldenRod
+}
+
+' Hide the stereotype labels
+hide stereotype
+
+' Define applications
+package "Application 1 Name Here" {
+  [FC-001 Functional Component Name] as FC1 <<Existing>>
+  [FC-002 Functional Component Name] as FC2 <<Existing>>
+  [FC-003 Functional Component Name] as FC3 <<Existing>>
+  [FC-004 Functional Component Name] as FC4 <<Leverage>>
+  [FC-005 Functional Component Name] as FC5 <<Leverage>>
+}
+
+package "Application 2 Name Here" {
+  [FC-006 Functional Component Name] as FC6 <<New>>
+}
+
+package "Application 3 Name Here" {
+  [FC-007 Functional Component Name] as FC7 <<Existing>>
+}
+
+' Define relations between the functional components
+FC1 --> FC2 : "Existing connection"
+FC2 --> FC3 : "Another existing connection"
+FC3 --> FC4 : "Leverage improvement"
+FC1 --> FC5 : "Leverage new functionality"
+FC4 --> FC6 : "New development"
+FC3 --> FC7 : "Existing connection"
+
+' Apply styles to relationships based on the type (Existing, Leverage, or New)
+FC1 -[hidden]- FC2 : Existing
+FC2 -[hidden]- FC3 : Existing
+FC3 -[hidden]down-> FC4 : Leverage
+FC1 -[hidden]down-> FC5 : Leverage
+FC4 -[hidden]right-> FC6 : New
+FC3 -[hidden]- FC7 : Existing
+
+' Legend with color boxes
+legend right
+<color Gainsboro>■</color> Existing Functional Component / No Change
+<color CornflowerBlue>■</color> Leverage or Extend Functional Component
+<color Gold>■</color> New Functional Component
+endlegend
+
+@enduml

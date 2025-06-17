@@ -1,0 +1,36 @@
+@startuml
+title Inbound Call Handling - Genesys Engage Voice Platform
+
+actor Caller
+participant "Genesys System" as System
+participant "Agent"
+
+Caller -> System: Initiates Call
+System -> System: Determine Routing\n(based on skills, availability)
+alt Call Routing
+    System -> Agent: Route Call
+    Agent -> System: Set Status to Ready
+    loop Call Reception
+        System -> Agent: Incoming Call Notification
+        alt Auto Answer
+            Agent -> Agent: Call Auto Answered
+        else Manual Answer
+            Agent -> System: Accept/Reject Call
+        end
+    end
+    Agent -> Agent: Open Voice Interaction Window
+    Agent -> Agent: Display Call Information
+    Agent -> Agent: Options for Notes and Disposition
+    alt Call Management
+        loop During Call
+            Agent -> System: Perform Call Actions\n(Transfer, Hold, End, etc.)
+        end
+    end
+    Agent -> System: End Call
+    Agent -> Agent: Select Disposition Code
+    Agent -> Agent: Complete Wrap-up Tasks
+else No Agent Available
+    System -> Caller: Play Wait Message or Offer Callback
+end
+
+@enduml

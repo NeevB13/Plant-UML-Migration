@@ -1,0 +1,87 @@
+@startuml
+!define RECTANGLE class
+!define DATABASE entity
+
+RECTANGLE ActiveDirectory #LightSkyBlue {
+    :Authentication System;
+}
+
+RECTANGLE OnlineBanking #LightGreen {
+    :Inbound/Outbound Actions;
+    :Inbound/Outbound Communications;
+}
+
+RECTANGLE ContactCentre #Yellow {
+    :Phone Calls Handling;
+    :Email and SMS Processing;
+}
+
+RECTANGLE BranchOperations #Violet {
+    :Customer Service;
+    :KYC Process;
+}
+
+DATABASE CustomerDB #Gold {
+    :Customer Information;
+}
+
+DATABASE Mainframe #Tomato {
+    :Core Banking Operations;
+}
+
+RECTANGLE FileTransfer #Chocolate {
+    :Payment Files Handling;
+    :Documentation Transfer;
+}
+
+RECTANGLE SWIFTServices #Orange {
+    :SWIFT Payments;
+}
+
+RECTANGLE RiskManagement #Pink {
+    :Compliance;
+    :Risk Analysis;
+}
+
+RECTANGLE CRM #LightCoral {
+    :Customer Relationship Management;
+}
+
+RECTANGLE DataWarehouse #Beige {
+    :Data Storage;
+    :Analytics;
+}
+
+RECTANGLE ATMPoS #Gray {
+    :ATM Operations;
+    :POS Services;
+}
+
+RECTANGLE LoanProcessing #LightBlue {
+    :Loan Application;
+    :Approval Workflow;
+}
+
+RECTANGLE HRSystem #Lavender {
+    :Employee Management;
+    :Payroll;
+}
+
+ActiveDirectory --> OnlineBanking : Authenticates
+ActiveDirectory --> ContactCentre : Authenticates
+ActiveDirectory --> BranchOperations : Authenticates
+OnlineBanking --> CustomerDB : Accesses
+ContactCentre --> CustomerDB : Updates/Queries
+BranchOperations --> CustomerDB : Updates/Queries
+Mainframe --> FileTransfer : Sends/Receives Data
+SWIFTServices --> Mainframe : Transaction Processing
+OnlineBanking --> SWIFTServices : Payment Processing
+BranchOperations --> Mainframe : Transaction Processing
+FileTransfer --> DataWarehouse : Data Sync
+RiskManagement --> Mainframe : Risk Analysis
+CRM --> CustomerDB : Manages Customer Data
+DataWarehouse --> CRM : Provides Analytics
+ATMPoS --> Mainframe : Transaction Processing
+LoanProcessing --> Mainframe : Loan Data Processing
+HRSystem --> CustomerDB : Employee-Customer Interaction
+@enduml
