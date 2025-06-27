@@ -11,6 +11,7 @@ import urllib3
 from requests.auth import HTTPBasicAuth
 import sys
 import csv
+from lxml import etree
 
 # === CONFIG ===
 # disable insecure requests warning
@@ -295,10 +296,11 @@ def start_plantuml_container():
             "plantuml/plantuml-server"
         ], check=True)
         print("PlantUML Docker container started.")
+        datetime.time.sleep(5)  # Wait for the container to start
     except subprocess.CalledProcessError as e:
         print("Failed to start PlantUML container:", e)
 
-from lxml import etree
+
 
 def wrap_puml_in_cdata(tree):
     """
@@ -396,7 +398,7 @@ def runScript(fileName, server_url="http://localhost:8080"):
             continue
 
         processed_page_set.add(page_id)  # Mark this page as processed
-        
+
         counter = 1
 
         # print(f"Processing page {page_id}...")
