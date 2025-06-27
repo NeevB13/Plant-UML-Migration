@@ -383,12 +383,20 @@ def runScript(fileName, server_url="http://localhost:8080"):
     # start plantuml docker container
     start_plantuml_container()
 
+    processed_page_set = set()  # To keep track of processed pages
+
     # namespace declaration for image
     AC_NS = "http://atlassian.com/content" # namespace for atlassian content
     RI_NS = "http://atlassian.com/resource/identifier" # namespace for atlassian resource identifier
     NSMAP = {'ac': AC_NS, 'ri': RI_NS}
 
     for page_id in page_ids:
+        if page_id in processed_page_set:
+            # Skip already processed pages
+            continue
+
+        processed_page_set.add(page_id)  # Mark this page as processed
+        
         counter = 1
 
         # print(f"Processing page {page_id}...")
