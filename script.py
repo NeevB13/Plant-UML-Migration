@@ -3,6 +3,7 @@ from io import BytesIO
 import json
 import os
 import re
+import time
 import requests
 import getpass
 import subprocess
@@ -11,7 +12,6 @@ import urllib3
 from requests.auth import HTTPBasicAuth
 import sys
 import csv
-from lxml import etree
 
 # === CONFIG ===
 # disable insecure requests warning
@@ -296,7 +296,7 @@ def start_plantuml_container():
             "plantuml/plantuml-server"
         ], check=True)
         print("PlantUML Docker container started.")
-        datetime.time.sleep(5)  # Wait for the container to start
+        time.sleep(5)  # Wait for the container to start
     except subprocess.CalledProcessError as e:
         print("Failed to start PlantUML container:", e)
 
