@@ -474,12 +474,17 @@ def runScript(fileName, server_url="http://localhost:8080"):
                 continue
 
             # POST to attach the image to the confluence page
-            requests.post(attachURL, 
+            response = requests.post(attachURL, 
                           auth=apiAuth,
                           headers = {"X-Atlassian-Token": "no-check"}, 
                           files={'file':(f"{uml_id}.png", image_data.getvalue(), 'image/png')}, 
                           verify=False
                           )
+            
+            # Check if image was successfully attached
+            # if response.status_code not in (200, 201):
+            #     append_to_log(skipped_macro_log, [uml_id, page_id, f"Failed to attach image: {response.status_code}"], page_id)
+            #     continue
         
             # Create tree node for uml image
             image_elem = etree.Element("{%s}image" % AC_NS, nsmap=NSMAP) # image
@@ -538,20 +543,22 @@ def runScript(fileName, server_url="http://localhost:8080"):
                 }
             }
         }
-        
-        update_response = requests.put(updateURL, headers=headers, json=payload, auth=apiAuth, verify=False)
 
-        if update_response.status_code == 200:
-            if processed_macros == 0:
-                #TODO: check this
-                append_to_log(page_log, [page_id, "No", "all plantUML macros were either unresolved or skipped", "N/A"], page_id)
-            else:
+        # if the processed_macros is 0, we do not want to update the page
+        if processed_macros == 0:
+            # if no macros were processed, we do not want to update the page
+            append_to_log(page_log, [page_id, "No", "No PlantUML macros were processed", "N/A"], page_id)
+        else:
+            # only if there are plantUML macros processed, we want to update the page
+            update_response = requests.put(updateURL, headers=headers, json=payload, auth=apiAuth, verify=False)
+
+            if update_response.status_code == 200:
                 comment_message = add_comment_to_page(page_id, apiAuth, page_log)
                 append_to_log(page_log, [page_id, "Yes", "Page updated successfully", comment_message], page_id)
+                    
                 
-            
-        else:
-            append_to_log(page_log, [page_id, "No", f"Failed to update page: {update_response.status_code}", "N/A"], page_id)
+            else:
+                append_to_log(page_log, [page_id, "No", f"Failed to update page: {update_response.status_code}", "N/A"], page_id)
     
     # Stop and remove the container
     subprocess.run(["docker", "stop", "plantuml_server"], check=True)
